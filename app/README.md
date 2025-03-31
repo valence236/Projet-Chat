@@ -104,3 +104,18 @@ POSTGRES_DB=chatapp
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 ``` 
+
+
+
+# Se connecter au conteneur PostgreSQL
+docker-compose exec db psql -U postgres -d chatapp
+
+# Une fois connecté, vous pouvez utiliser ces commandes :
+# Lister toutes les tables
+\dt
+
+# Voir la structure d'une table spécifique (par exemple users)
+\d users
+
+# Voir le contenu d'une table
+SELECT * FROM users;

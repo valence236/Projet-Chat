@@ -30,6 +30,13 @@ services:
     networks:
       - spring-network
 
+  
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8282:8080  
+
 volumes:
   postgres_data:
 
