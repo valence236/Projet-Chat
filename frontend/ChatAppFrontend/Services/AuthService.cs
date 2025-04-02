@@ -3,6 +3,8 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using ChatAppFrontend.Models;
+using ChatAppFrontend.Services;
 
 namespace ChatAppFrontend
 {
@@ -18,11 +20,7 @@ namespace ChatAppFrontend
 
         public async Task<bool> LoginAsync(string username, string password)
         {
-            var loginData = new
-            {
-                username,
-                password
-            };
+            var loginData = new { username, password };
 
             var content = new StringContent(
                 JsonSerializer.Serialize(loginData),
@@ -32,28 +30,36 @@ namespace ChatAppFrontend
             try
             {
                 var response = await _httpClient.PostAsync($"{BaseUrl}login", content);
-                return response.IsSuccessStatusCode;
-            }
-            catch (HttpRequestException ex)
-            {
-                Console.WriteLine($"Erreur de requête HTTP (login) : {ex.Message}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    var loginResponse = JsonSerializer.Deserialize<LoginResponse>(json, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                    if (loginResponse != null)
+                    {
+                        SessionManager.Token = loginResponse.Token;
+                        SessionManager.Username = loginResponse.Username;
+                        return true;
+                    }
+                }
+
                 return false;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erreur inattendue (login) : {ex.Message}");
+                Console.WriteLine($"Erreur login : {ex.Message}");
                 return false;
             }
         }
 
+
         public async Task<bool> RegisterAsync(string username, string email, string password)
         {
-            var registerData = new
-            {
-                username,
-                email,
-                password
-            };
+            var registerData = new { username, email, password };
 
             var content = new StringContent(
                 JsonSerializer.Serialize(registerData),
@@ -65,14 +71,9 @@ namespace ChatAppFrontend
                 var response = await _httpClient.PostAsync($"{BaseUrl}register", content);
                 return response.IsSuccessStatusCode;
             }
-            catch (HttpRequestException ex)
-            {
-                Console.WriteLine($"Erreur de requête HTTP (register) : {ex.Message}");
-                return false;
-            }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erreur inattendue (register) : {ex.Message}");
+                Console.WriteLine($"Erreur register : {ex.Message}");
                 return false;
             }
         }

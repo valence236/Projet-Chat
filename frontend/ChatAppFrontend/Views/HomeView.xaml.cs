@@ -1,5 +1,5 @@
-// HomeView.xaml.cs minimaliste et correct
 using System.Windows.Controls;
+using ChatAppFrontend.ViewsModel;
 
 namespace ChatAppFrontend.Views
 {
@@ -8,6 +8,7 @@ namespace ChatAppFrontend.Views
         public HomeView()
         {
             InitializeComponent();
+            DataContext = new HomeViewModel();
         }
     }
 }
