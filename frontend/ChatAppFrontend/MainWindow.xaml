@@ -1,0 +1,8 @@
+﻿<Window x:Class="ChatAppFrontend.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Chat App" Height="450" Width="800">
+    
+    <!-- Le ContentControl va contenir dynamiquement les vues -->
+    <ContentControl x:Name="MainContent" />
+</Window>

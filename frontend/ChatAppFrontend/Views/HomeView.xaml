@@ -1,0 +1,11 @@
+<UserControl x:Class="ChatAppFrontend.Views.HomeView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Background="White">
+        <TextBlock Text="Bienvenue sur l'application de Chat !"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   FontSize="24"
+                   FontWeight="Bold"/>
+    </Grid>
+</UserControl>

@@ -1,0 +1,54 @@
+<UserControl x:Class="ChatAppFrontend.Views.LoginView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:ChatAppFrontend.ViewsModel"
+             x:Name="LoginViewControl">
+
+    <Grid Background="#F0F0F0">
+        <Border Width="300"
+                VerticalAlignment="Center"
+                HorizontalAlignment="Center"
+                Background="White"
+                Padding="20"
+                CornerRadius="10"
+                >
+
+            <StackPanel>
+                <TextBlock Text="Connexion"
+                           FontSize="24"
+                           FontWeight="Bold"
+                           Foreground="#333"
+                           Margin="0 0 0 20"
+                           HorizontalAlignment="Center"/>
+
+                <TextBlock Text="Nom d'utilisateur"/>
+                <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
+                         Margin="0 0 0 10"/>
+
+                <TextBlock Text="Mot de passe"/>
+                <PasswordBox x:Name="PasswordBox"
+                             PasswordChanged="PasswordBox_PasswordChanged"
+                             Margin="0 0 0 10"/>
+
+                <TextBlock Text="{Binding ErrorMessage}"
+                           Foreground="Red"
+                           Margin="0 0 0 10"
+                           TextWrapping="Wrap" />
+
+                <Button Content="Se connecter"
+                        Command="{Binding LoginCommand}"
+                        Margin="0 0 0 10"
+                        Background="#4CAF50"
+                        Foreground="White"
+                        Padding="8"/>
+
+                <TextBlock Text="S'inscrire"
+                           Foreground="Blue"
+                           Cursor="Hand"
+                           TextDecorations="Underline"
+                           HorizontalAlignment="Center"
+                           MouseLeftButtonUp="SignUpText_MouseLeftButtonUp"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
