@@ -1,5 +1,9 @@
+using System.Windows;
 using System.Windows.Controls;
 using ChatAppFrontend.ViewsModel;
+using ChatAppFrontend.Services; 
+
+
 
 namespace ChatAppFrontend.Views
 {
@@ -10,5 +14,11 @@ namespace ChatAppFrontend.Views
             InitializeComponent();
             DataContext = new HomeViewModel();
         }
+
+        private void Logout_Click(object sender, RoutedEventArgs e)
+{
+    SessionManager.Logout();
+    NavigationService.NavigateToLogin();
+}
     }
 }

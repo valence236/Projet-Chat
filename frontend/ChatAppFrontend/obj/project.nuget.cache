@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "INuSe7ad1+U=",
+  "dgSpecHash": "gK4L4pc2F0g=",
   "success": true,
-  "projectFilePath": "C:\\Users\\mokzen\\Documents\\ChatApp\\Projet-Chat\\frontend\\Chatappfrontend\\ChatAppFrontend.csproj",
+  "projectFilePath": "C:\\Users\\mokzen\\Documents\\ChatApp\\Projet-Chat\\frontend\\chatappfrontend\\ChatAppFrontend.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\mokzen\\.nuget\\packages\\communitytoolkit.mvvm\\8.4.0\\communitytoolkit.mvvm.8.4.0.nupkg.sha512"
   ],
