@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat App</title>
+    <link href="/webjars/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding-top: 10px; }
+        #sidebar { width: 250px; border-right: 1px solid #ccc; padding: 10px; overflow-y: auto; flex-shrink: 0;} 
+        #chat-container { flex-grow: 1; display: flex; flex-direction: column; padding: 10px; max-width: none; }
+        #current-conversation-title { margin-bottom: 10px; font-weight: bold; }
+        #message-area { flex-grow: 1; overflow-y: auto; border: 1px solid #ccc; margin-bottom: 10px; padding: 10px; min-height: 300px; }
+        #message-form { flex-shrink: 0; }
+        .message { margin-bottom: 5px; padding: 8px 12px; border-radius: 15px; max-width: 70%; word-wrap: break-word; }
+        .message.sent { background-color: #dcf8c6; margin-left: auto; text-align: left; }
+        .message.received { background-color: #f1f0f0; margin-right: auto; }
+        .message .sender { font-weight: bold; margin-bottom: 3px; font-size: 0.9em; color: #555; }
+        .message .timestamp { font-size: 0.75em; color: #999; margin-left: 10px; display: block; text-align: right; }
+        #user-list .list-group-item { cursor: pointer; }
+        #user-list .list-group-item.active { background-color: #0d6efd; border-color: #0d6efd; }
+        
+        .hidden { display: none !important; }
+        #main-container { display: flex; height: calc(100vh - 20px); width: 100%; }
+        #auth-container { max-width: 400px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+<!-- Conteneur d'Authentification (Visible par défaut) -->
+<div id="auth-container">
+    <h3 class="text-center mb-4" id="auth-title">Connexion</h3>
+    <div id="auth-error" class="alert alert-danger hidden" role="alert"></div>
+
+    <!-- Formulaire de Connexion -->
+    <form id="login-form">
+        <div class="mb-3">
+            <label for="login-username" class="form-label">Nom d'utilisateur</label>
+            <input type="text" class="form-control" id="login-username" required>
+        </div>
+        <div class="mb-3">
+            <label for="login-password" class="form-label">Mot de passe</label>
+            <input type="password" class="form-control" id="login-password" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Se connecter</button>
+    </form>
+
+    <!-- Formulaire d'Inscription (Caché par défaut) -->
+    <form id="register-form" class="hidden">
+        <div class="mb-3">
+            <label for="register-username" class="form-label">Nom d'utilisateur</label>
+            <input type="text" class="form-control" id="register-username" required>
+        </div>
+        <div class="mb-3">
+            <label for="register-email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="register-email" required>
+        </div>
+        <div class="mb-3">
+            <label for="register-password" class="form-label">Mot de passe</label>
+            <input type="password" class="form-control" id="register-password" required>
+        </div>
+        <button type="submit" class="btn btn-success w-100">S'inscrire</button>
+    </form>
+
+    <div class="text-center mt-3">
+        <a href="#" id="switch-to-register">Pas encore de compte ? S'inscrire</a>
+        <a href="#" id="switch-to-login" class="hidden">Déjà un compte ? Se connecter</a>
+    </div>
+</div>
+
+<!-- Conteneur principal du Chat (caché par défaut) -->
+<div id="main-container" class="hidden"> 
+    <div id="chat-page" style="display: flex; width: 100%;">
+        <!-- Barre latérale pour la liste des utilisateurs -->
+        <div id="sidebar">
+            <h5>Utilisateurs</h5>
+            <ul id="user-list" class="list-group"> 
+                <li class="list-group-item">Chargement...</li>
+            </ul>
+            <hr>
+            <button id="disconnect-button" class="btn btn-danger btn-sm w-100">Déconnexion</button>
+        </div>
+
+        <!-- Zone principale du chat -->
+        <div id="chat-container">
+            <div id="current-conversation-title" class="text-center">Chat Public</div>
+            <div id="message-area"></div>
+            <div id="message-form" class="input-group">
+                <input type="text" id="message" placeholder="Écrire un message..." class="form-control" autocomplete="off"/>
+                <button id="send-button" class="btn btn-success">Envoyer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Librairies JS -->
+<script src="/webjars/sockjs-client/sockjs.min.js"></script>
+<script src="/webjars/stomp-websocket/stomp.min.js"></script>
+<script src="/webjars/jquery/jquery.min.js"></script>
+<script src="/webjars/bootstrap/js/bootstrap.bundle.min.js"></script> 
+<script src="/js/main.js"></script>
+
+</body>
+</html> 
