@@ -22,9 +22,13 @@ public class Message {
     private User sender;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "recipient_id") // Peut être null pour les messages publics/canaux
+    @JoinColumn(name = "recipient_id") // Sera null pour les messages de salon
     private User recipient;
     
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "channel_id") // Sera null pour les messages privés
+    private Channel channel;
+
     // Vous pourriez ajouter une référence à un "Channel" ou "Room" ici si nécessaire
     // @ManyToOne(fetch = FetchType.LAZY)
     // @JoinColumn(name = "channel_id")
