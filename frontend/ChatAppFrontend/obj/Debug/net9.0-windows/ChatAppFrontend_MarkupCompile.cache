@@ -4,15 +4,15 @@
 winexe
 C#
 .cs
-C:\Users\mokzen\Documents\ChatApp\Projet-Chat\frontend\ChatAppFrontend\obj\Debug\net9.0-windows\
+C:\Users\mokzen\Documents\ChatApp\Projet-Chat\frontend\ChatAppfrontend\obj\Debug\net9.0-windows\
 ChatAppFrontend
 none
 false
 TRACE;DEBUG;NET;NET9_0;NETCOREAPP
-C:\Users\mokzen\Documents\ChatApp\Projet-Chat\frontend\ChatAppFrontend\App.xaml
+C:\Users\mokzen\Documents\ChatApp\Projet-Chat\frontend\ChatAppfrontend\App.xaml
 41830544561
 
-161204179528
+18-1714627770
 2011464298103
 MainWindow.xaml;Views\HomeView.xaml;Views\LoginView.xaml;Views\RegisterView.xaml;
 
