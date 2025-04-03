@@ -20,6 +20,9 @@ namespace ChatAppFrontend.Services
         private StompClient _stompClient;
         private bool _isStompConnected = false;
 
+        // Événement pour notifier quand un nouveau message est reçu
+        public event EventHandler<Message>? MessageReceived;
+
         public MessageService()
         {
             try
@@ -109,16 +112,52 @@ namespace ChatAppFrontend.Services
             }
         }
         
-        private void HandlePrivateMessage(string message)
+        private void HandlePrivateMessage(string messageJson)
         {
-            Console.WriteLine($"Message privé reçu: {message}");
-            // Ici, vous pourriez déclencher un événement ou mettre à jour un ObservableCollection
+            Console.WriteLine($"Message privé reçu: {messageJson}");
+            
+            try
+            {
+                // Désérialiser le message JSON reçu
+                var message = JsonSerializer.Deserialize<Message>(messageJson, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+                
+                if (message != null)
+                {
+                    // Notifier que le message a été reçu
+                    MessageReceived?.Invoke(this, message);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erreur lors du traitement du message privé: {ex.Message}");
+            }
         }
         
-        private void HandlePublicMessage(string message)
+        private void HandlePublicMessage(string messageJson)
         {
-            Console.WriteLine($"Message public reçu: {message}");
-            // Ici, vous pourriez déclencher un événement ou mettre à jour un ObservableCollection
+            Console.WriteLine($"Message public reçu: {messageJson}");
+            
+            try
+            {
+                // Désérialiser le message JSON reçu
+                var message = JsonSerializer.Deserialize<Message>(messageJson, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+                
+                if (message != null)
+                {
+                    // Notifier que le message a été reçu
+                    MessageReceived?.Invoke(this, message);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erreur lors du traitement du message public: {ex.Message}");
+            }
         }
         
         public async Task<bool> SendMessageAsync(int? channelId, string content, string? recipientUsername = null)
@@ -840,10 +879,28 @@ namespace ChatAppFrontend.Services
             }
         }
         
-        private void HandleChannelMessage(string message)
+        private void HandleChannelMessage(string messageJson)
         {
-            Console.WriteLine($"Message de canal reçu: {message}");
-            // Ici, vous pourriez déclencher un événement ou mettre à jour un ObservableCollection
+            Console.WriteLine($"Message de canal reçu: {messageJson}");
+            
+            try
+            {
+                // Désérialiser le message JSON reçu
+                var message = JsonSerializer.Deserialize<Message>(messageJson, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+                
+                if (message != null)
+                {
+                    // Notifier que le message a été reçu
+                    MessageReceived?.Invoke(this, message);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erreur lors du traitement du message de canal: {ex.Message}");
+            }
         }
     }
 }
