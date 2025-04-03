@@ -6,6 +6,8 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
@@ -22,6 +24,25 @@ public class Channel {
 
     private String description;
 
+    @Column(nullable = false)
+    private String creatorUsername;  // Username de l'administrateur
+
+    @ElementCollection
+    private Set<String> moderatorUsernames = new HashSet<>();  // Liste des modérateurs
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    // Méthodes utilitaires pour vérifier les permissions
+    public boolean isAdmin(String username) {
+        return creatorUsername.equals(username);
+    }
+
+    public boolean isModerator(String username) {
+        return moderatorUsernames.contains(username);
+    }
+
+    public boolean canModerateMessages(String username) {
+        return isAdmin(username) || isModerator(username);
+    }
 } 
