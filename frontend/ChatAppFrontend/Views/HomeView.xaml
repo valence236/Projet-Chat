@@ -5,9 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <!-- Fond gris clair -->
     <Grid Background="#F0F0F0">
-        <!-- Conteneur blanc centré -->
         <Border Width="700"
                 VerticalAlignment="Center"
                 HorizontalAlignment="Center"
@@ -17,7 +15,7 @@
 
             <StackPanel>
 
-                <!-- Titre -->
+                <!-- Titre principal -->
                 <TextBlock Text="Bienvenue sur l'application de Chat"
                            FontSize="24"
                            FontWeight="Bold"
@@ -32,13 +30,18 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- Champ + Créer -->
+                    <!-- Formulaire création salon -->
                     <StackPanel Orientation="Horizontal" Grid.Column="0">
                         <StackPanel>
                             <TextBlock Text="Nom du salon" Margin="0 0 0 5"/>
                             <TextBox Width="200"
                                      Text="{Binding NomNouveauSalon, UpdateSourceTrigger=PropertyChanged}"
-                                     Margin="0 10 0 0"/>
+                                     Margin="0 5 0 5"/>
+
+                            <TextBlock Text="Description" Margin="0 5 0 0"/>
+                            <TextBox Width="200"
+                                     Text="{Binding DescriptionNouveauSalon, UpdateSourceTrigger=PropertyChanged}"
+                                     Margin="0 5 0 0"/>
                         </StackPanel>
 
                         <Button Content="Créer"
@@ -75,30 +78,28 @@
                         <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="Auto"/>
                         <DataGridTextColumn Header="Nom" Binding="{Binding Nom}" Width="*" />
                         <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="2*" />
-                        <DataGridTextColumn Header="Nombre" Binding="{Binding Nombre}" Width="Auto"/>
 
                         <!-- Colonne Supprimer -->
                         <DataGridTemplateColumn Header="Actions" Width="Auto">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                      <Button Content="❌"
-        Command="{Binding DataContext.SupprimerSalonCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-        CommandParameter="{Binding}"
-        Foreground="Red"
-        FontSize="16"
-        Cursor="Hand"
-        ToolTip="Supprimer ce salon"
-        Padding="0"
-        Width="30"
-        Background="Transparent"
-        BorderBrush="Transparent">
-    <Button.Template>
-        <ControlTemplate TargetType="Button">
-            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        </ControlTemplate>
-    </Button.Template>
-</Button>
-
+                                    <Button Content="❌"
+                                            Command="{Binding DataContext.SupprimerSalonCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"
+                                            Foreground="Red"
+                                            FontSize="16"
+                                            Cursor="Hand"
+                                            ToolTip="Supprimer ce salon"
+                                            Padding="0"
+                                            Width="30"
+                                            Background="Transparent"
+                                            BorderBrush="Transparent">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>

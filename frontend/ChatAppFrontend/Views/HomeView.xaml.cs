@@ -20,5 +20,6 @@ namespace ChatAppFrontend.Views
     SessionManager.Logout();
     NavigationService.NavigateToLogin();
 }
+
     }
 }
