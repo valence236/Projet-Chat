@@ -21,6 +21,10 @@
         .hidden { display: none !important; }
         #main-container { display: flex; height: calc(100vh - 20px); width: 100%; }
         #auth-container { max-width: 400px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        
+        /* Styles pour les erreurs */
+        #auth-error.hidden, #create-channel-error.hidden { display: none !important; }
+        #auth-error, #create-channel-error { margin: 10px 0; }
     </style>
 </head>
 <body>
@@ -72,9 +76,16 @@
         <!-- Barre latérale pour la liste des utilisateurs -->
         <div id="sidebar">
             <h5>Utilisateurs</h5>
-            <ul id="user-list" class="list-group"> 
+            <ul id="user-list" class="list-group mb-3"> 
                 <li class="list-group-item">Chargement...</li>
             </ul>
+            
+            <h5>Salons Publics</h5>
+            <ul id="channel-list" class="list-group mb-3"> 
+                <li class="list-group-item">Chargement...</li>
+            </ul>
+            <button id="create-channel-btn" class="btn btn-primary btn-sm w-100 mb-3">Créer un salon</button>
+            
             <hr>
             <button id="disconnect-button" class="btn btn-danger btn-sm w-100">Déconnexion</button>
         </div>
@@ -89,6 +100,36 @@
             </div>
         </div>
     </div>
+</div>
+
+<!-- Modal pour créer un salon -->
+<div class="modal fade" id="createChannelModal" tabindex="-1" aria-labelledby="createChannelModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="createChannelModalLabel">Créer un nouveau salon</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body">
+        <form id="create-channel-form">
+          <div class="mb-3">
+            <label for="channel-name" class="form-label">Nom du salon</label>
+            <input type="text" class="form-control" id="channel-name" required>
+          </div>
+          <div class="mb-3">
+            <label for="channel-description" class="form-label">Description (optionnelle)</label>
+            <textarea class="form-control" id="channel-description" rows="3"></textarea>
+          </div>
+        </form>
+      </div>
+      <div id="create-channel-error" class="alert alert-danger hidden" role="alert" style="display: none;">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-primary" id="submit-channel-btn">Créer</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Librairies JS -->
