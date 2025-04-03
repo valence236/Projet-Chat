@@ -1,17 +1,16 @@
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using System.Collections.ObjectModel;
-using System.Windows.Input;
-using ChatAppFrontend.Services;
-using System.Threading.Tasks;
-using System.Linq;
 using System;
 using System.Collections.Generic;
-using ChatAppFrontend.ViewModel;
-using System.Windows.Threading;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
+using ChatAppFrontend.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
-namespace ChatAppFrontend.ViewsModel
+namespace ChatAppFrontend.ViewModel
 {
     public enum ConversationType
     {
@@ -29,9 +28,9 @@ namespace ChatAppFrontend.ViewsModel
 
     public partial class HomeViewModel : ObservableObject
     {
-        private readonly ChannelService _channelService = new();
-        private readonly MessageService _messageService = new();
-        private readonly UserService _userService = new();
+        private readonly ChannelService _channelService;
+        private readonly MessageService _messageService;
+        private readonly UserService _userService;
 
         [ObservableProperty]
         private ObservableCollection<Room>? rooms;
@@ -85,6 +84,13 @@ namespace ChatAppFrontend.ViewsModel
         {
             try
             {
+                _messageService = new MessageService();
+                _userService = new UserService();
+                _channelService = new ChannelService();
+
+                // S'abonner à l'événement MessageReceived pour recevoir les messages en temps réel
+                _messageService.MessageReceived += OnMessageReceived;
+
                 CreerSalonCommand = new RelayCommand(CreerSalon);
                 SupprimerSalonCommand = new RelayCommand<Channel>(SupprimerSalon);
                 EnvoyerMessageCommand = new AsyncRelayCommand(EnvoyerMessageAsync);
@@ -382,6 +388,45 @@ namespace ChatAppFrontend.ViewsModel
             
             // S'abonner au canal via STOMP
             await _messageService.SubscribeToChannel(channel.Id);
+        }
+
+        private void OnMessageReceived(object? sender, Message message)
+        {
+            // Ajouter le message reçu à la liste des messages
+            if (message != null)
+            {
+                // Vérifier si le message appartient à la conversation actuelle
+                bool shouldAdd = false;
+                
+                if (CurrentConversation?.Type == ConversationType.Public && message.IsPublic)
+                {
+                    shouldAdd = true;
+                }
+                else if (CurrentConversation?.Type == ConversationType.User && 
+                        (message.SenderUsername == CurrentConversation.Id || 
+                         message.RecipientUsername == CurrentConversation.Id))
+                {
+                    shouldAdd = true;
+                }
+                else if (CurrentConversation?.Type == ConversationType.Channel && 
+                         message.ChannelId.HasValue && 
+                         message.ChannelId.Value == int.Parse(CurrentConversation.Id))
+                {
+                    shouldAdd = true;
+                }
+                
+                if (shouldAdd)
+                {
+                    // Exécuter sur le thread UI
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        Messages.Add(message);
+                        // Trier les messages par date si nécessaire
+                        var sortedMessages = new ObservableCollection<Message>(Messages.OrderBy(m => m.Timestamp));
+                        Messages = sortedMessages;
+                    });
+                }
+            }
         }
     }
 }
