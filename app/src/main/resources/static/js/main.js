@@ -265,30 +265,94 @@ async function fetchChannels() {
     const token = localStorage.getItem('jwtToken');
     if (!token) return;
     try {
-        const response = await fetch('/api/channels', { headers: { 'Authorization': 'Bearer ' + token } });
+        const response = await fetch('/api/channels', { 
+            headers: { 'Authorization': 'Bearer ' + token } 
+        });
         if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
         const channels = await response.json();
 
-        channelList.innerHTML = ''; // Vide la liste
-        // Option Chat Public Global (si on veut la garder séparée des salons)
+        channelList.innerHTML = '';
+        
+        // Option Chat Public Global
         const publicOption = document.createElement('li');
         publicOption.textContent = "Chat Public (Général)";
-        publicOption.classList.add('list-group-item', 'list-group-item-action', 'active');
+        publicOption.classList.add('list-group-item', 'list-group-item-action');
         publicOption.dataset.type = 'public';
         publicOption.dataset.id = 'public';
         publicOption.onclick = () => selectConversation('public', null, 'Chat Public (Général)');
         channelList.appendChild(publicOption);
 
-        channels.forEach(channel => {
+        for (const channel of channels) {
             const channelElement = document.createElement('li');
-            channelElement.textContent = `#${channel.name}`; // Ajoute # pour distinguer
             channelElement.classList.add('list-group-item', 'list-group-item-action');
+            
+            // Créer un conteneur flex pour le nom et les boutons
+            const channelContainer = document.createElement('div');
+            channelContainer.classList.add('d-flex', 'justify-content-between', 'align-items-center');
+            
+            // Nom du salon
+            const channelName = document.createElement('span');
+            channelName.textContent = `#${channel.name}`;
+            channelContainer.appendChild(channelName);
+
+            // Conteneur pour les boutons
+            const buttonContainer = document.createElement('div');
+            buttonContainer.classList.add('btn-group');
+
+            // Si l'utilisateur est l'administrateur, ajouter le bouton de suppression
+            if (channel.creatorUsername === currentUsername) {
+                const deleteBtn = document.createElement('button');
+                deleteBtn.innerHTML = '🗑️';
+                deleteBtn.title = 'Supprimer le salon';
+                deleteBtn.classList.add('btn', 'btn-sm', 'btn-danger', 'ms-2');
+                deleteBtn.onclick = async (e) => {
+                    e.stopPropagation(); // Empêcher la sélection du salon
+                    if (confirm('Êtes-vous sûr de vouloir supprimer ce salon ?')) {
+                        try {
+                            console.log(`Tentative de suppression du salon ${channel.id}`);
+                            const response = await fetch(`/api/channels/${channel.id}`, {
+                                method: 'DELETE',
+                                headers: {
+                                    'Authorization': 'Bearer ' + token,
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                            
+                            const data = await response.json();
+                            console.log('Réponse de suppression:', data);
+                            
+                            if (response.ok) {
+                                console.log('Suppression réussie');
+                                // Si on était dans ce salon, retourner au chat public
+                                if (currentConversation.id === channel.id) {
+                                    selectConversation('public', null, 'Chat Public (Général)');
+                                }
+                                // Rafraîchir la liste des salons
+                                fetchChannels();
+                            } else {
+                                console.error('Erreur de suppression:', data);
+                                alert(data.message || 'Erreur lors de la suppression du salon');
+                            }
+                        } catch (error) {
+                            console.error('Erreur complète:', error);
+                            alert('Erreur lors de la suppression du salon: ' + error.message);
+                        }
+                    }
+                };
+                buttonContainer.appendChild(deleteBtn);
+            }
+
+            channelContainer.appendChild(buttonContainer);
+            channelElement.appendChild(channelContainer);
+            
+            // Configurer le clic sur le salon
             channelElement.dataset.type = 'channel';
             channelElement.dataset.id = channel.id;
             channelElement.dataset.name = channel.name;
             channelElement.onclick = () => selectConversation('channel', channel.id, `#${channel.name}`);
+            
             channelList.appendChild(channelElement);
-        });
+        }
     } catch (error) {
         console.error("Impossible de récupérer la liste des salons:", error);
     }
@@ -441,14 +505,11 @@ function highlightItemWithNewMessage(type, id) {
 }
 
 // --- displayMessage (adapté pour afficher le nom du salon si pertinent) ---
-function displayMessage(message) { 
+function displayMessage(message) {
     const messageElement = document.createElement('div');
     messageElement.classList.add('message');
-    if (message.senderUsername === currentUsername) {
-        messageElement.classList.add('sent');
-    } else {
-        messageElement.classList.add('received');
-    }
+    messageElement.classList.add(message.senderUsername === currentUsername ? 'sent' : 'received');
+
     const avatarElement = document.createElement('span');
     const avatarText = document.createTextNode(message.senderUsername[0]);
     avatarElement.appendChild(avatarText);
@@ -479,6 +540,35 @@ function displayMessage(message) {
     const messageTime = new Date(message.timestamp);
     timeElement.textContent = messageTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     messageElement.appendChild(timeElement);
+
+    // Ajouter le bouton de suppression si on est dans un salon
+    if (currentConversation.type === 'channel') {
+        const deleteButton = document.createElement('button');
+        deleteButton.classList.add('btn', 'btn-sm', 'btn-danger', 'float-end');
+        deleteButton.innerHTML = '🗑️';
+        deleteButton.onclick = async () => {
+            try {
+                const response = await fetch(
+                    `/api/messages/channel/${currentConversation.id}/messages/${message.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('jwtToken')
+                    }
+                });
+
+                if (response.ok) {
+                    messageElement.remove();
+                } else {
+                    const error = await response.json();
+                    alert(error.message || 'Erreur lors de la suppression du message');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur lors de la suppression du message');
+            }
+        };
+        messageElement.appendChild(deleteButton);
+    }
 
     messageArea.appendChild(messageElement);
     messageArea.scrollTop = messageArea.scrollHeight;
@@ -637,24 +727,25 @@ function showCreateChannelModal() {
 }
 
 async function createChannel() {
-    // Récupérer les valeurs du formulaire
     const name = channelNameInput.value.trim();
     const description = channelDescriptionInput.value.trim();
     
-    // Validation basique
+    console.log("Tentative de création du salon:", { name, description });
+    
     if (!name) {
         createChannelError.textContent = 'Le nom du salon est requis';
         createChannelError.style.display = 'block';
         return;
     }
     
-    // Préparer les données
     const channelData = {
         name: name,
-        description: description
+        description: description,
+        creatorUsername: currentUsername
     };
     
-    // Envoyer la requête au serveur
+    console.log("Données du salon à créer:", channelData);
+    
     const token = localStorage.getItem('jwtToken');
     if (!token) {
         createChannelError.textContent = 'Vous devez être connecté pour créer un salon';
@@ -672,27 +763,129 @@ async function createChannel() {
             body: JSON.stringify(channelData)
         });
         
-        // Gérer la réponse
+        console.log("Réponse du serveur:", response.status);
+        
         if (response.ok) {
-            // Fermer le modal
+            const newChannel = await response.json();
+            console.log("Nouveau salon créé:", newChannel);
+            
             const modal = bootstrap.Modal.getInstance(createChannelModal);
             modal.hide();
             
-            // Rafraîchir la liste des salons
-            fetchChannels();
+            // Forcer le rafraîchissement de la liste des salons
+            await fetchChannels();
             
-            // Optionnel: sélectionner le nouveau salon automatiquement
-            const newChannel = await response.json();
+            // Sélectionner le nouveau salon
             selectConversation('channel', newChannel.id, `#${newChannel.name}`);
         } else {
-            // Afficher l'erreur
             const errorData = await response.json();
-            createChannelError.textContent = errorData || 'Erreur lors de la création du salon';
+            console.error("Erreur création salon:", errorData);
+            createChannelError.textContent = errorData.message || 'Erreur lors de la création du salon';
             createChannelError.style.display = 'block';
         }
     } catch (error) {
         console.error('Erreur lors de la création du salon:', error);
         createChannelError.textContent = 'Erreur lors de la création du salon';
         createChannelError.style.display = 'block';
+    }
+}
+
+// Fonction pour vérifier si l'utilisateur est admin d'un salon
+async function isChannelAdmin(channelId) {
+    const token = localStorage.getItem('jwtToken');
+    try {
+        const response = await fetch(`/api/channels/${channelId}/admin-status`, {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        return response.ok;
+    } catch (error) {
+        console.error('Erreur lors de la vérification du statut admin:', error);
+        return false;
+    }
+}
+
+// Fonction pour gérer les modérateurs
+async function manageModerators(channelId) {
+    const token = localStorage.getItem('jwtToken');
+    try {
+        // Récupérer la liste des utilisateurs
+        const response = await fetch('/api/users', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const users = await response.json();
+
+        // Créer une boîte de dialogue simple
+        const userList = users.map(user => `
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="${user.username}" id="mod-${user.username}">
+                <label class="form-check-label" for="mod-${user.username}">
+                    ${user.username}
+                </label>
+            </div>
+        `).join('');
+
+        // Afficher un modal Bootstrap pour la gestion des modérateurs
+        const modalHtml = `
+            <div class="modal fade" id="moderatorModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Gérer les modérateurs</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            ${userList}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                            <button type="button" class="btn btn-primary" onclick="saveModerators(${channelId})">Enregistrer</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Ajouter le modal au DOM et l'afficher
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        const modal = new bootstrap.Modal(document.getElementById('moderatorModal'));
+        modal.show();
+
+        // Nettoyer le modal après fermeture
+        document.getElementById('moderatorModal').addEventListener('hidden.bs.modal', function () {
+            this.remove();
+        });
+
+    } catch (error) {
+        console.error('Erreur lors de la gestion des modérateurs:', error);
+        alert('Erreur lors de la gestion des modérateurs');
+    }
+}
+
+// Fonction pour sauvegarder les modérateurs
+async function saveModerators(channelId) {
+    const token = localStorage.getItem('jwtToken');
+    const moderators = Array.from(document.querySelectorAll('#moderatorModal input:checked'))
+        .map(input => input.value);
+
+    try {
+        const response = await fetch(`/api/channels/${channelId}/moderators`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify(moderators)
+        });
+
+        if (response.ok) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('moderatorModal'));
+            modal.hide();
+            alert('Modérateurs mis à jour avec succès');
+        } else {
+            throw new Error('Erreur lors de la mise à jour des modérateurs');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Erreur lors de la sauvegarde des modérateurs');
     }
 } 
