@@ -339,6 +339,29 @@ async function fetchChannels() {
                         }
                     }
                 };
+                
+                // Ajouter le bouton pour gérer les modérateurs
+                const moderatorBtn = document.createElement('button');
+                moderatorBtn.innerHTML = '👥';
+                moderatorBtn.title = 'Gérer les modérateurs';
+                moderatorBtn.classList.add('btn', 'btn-sm', 'btn-info', 'ms-2');
+                moderatorBtn.onclick = (e) => {
+                    e.stopPropagation(); // Empêcher la sélection du salon
+                    manageModerators(channel.id);
+                };
+                
+                // Ajouter le bouton pour gérer les utilisateurs bloqués
+                const blockedBtn = document.createElement('button');
+                blockedBtn.innerHTML = '🚫';
+                blockedBtn.title = 'Gérer les utilisateurs bloqués';
+                blockedBtn.classList.add('btn', 'btn-sm', 'btn-warning', 'ms-2');
+                blockedBtn.onclick = (e) => {
+                    e.stopPropagation(); // Empêcher la sélection du salon
+                    manageBlockedUsers(channel.id);
+                };
+                
+                buttonContainer.appendChild(moderatorBtn);
+                buttonContainer.appendChild(blockedBtn);
                 buttonContainer.appendChild(deleteBtn);
             }
 
@@ -410,7 +433,66 @@ async function fetchHistory() {
         if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
         const historyMessages = await response.json();
         console.log("Historique reçu:", historyMessages);
-        historyMessages.forEach(displayMessage);
+        
+        if (historyMessages && historyMessages.length > 0) {
+            // Utilise la première fonction displayMessage (celle qui gère les contrôles de modération)
+            for (const message of historyMessages) {
+                console.log("Affichage du message:", message);
+                // S'assurer que nous utilisons la première implémentation de displayMessage
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message');
+                messageElement.classList.add(message.senderUsername === currentUsername ? 'sent' : 'received');
+                messageElement.dataset.id = message.id;
+                messageElement.dataset.sender = message.senderUsername;
+
+                const avatarElement = document.createElement('span');
+                const avatarText = document.createTextNode(message.senderUsername[0]);
+                avatarElement.appendChild(avatarText);
+                avatarElement.style['background-color'] = getAvatarColor(message.senderUsername);
+                avatarElement.style['color'] = '#fff';
+                avatarElement.style['padding'] = '5px 8px';
+                avatarElement.style['border-radius'] = '50%';
+                avatarElement.style['margin-right'] = '8px';
+                messageElement.appendChild(avatarElement);
+
+                const infoElement = document.createElement('div');
+                infoElement.classList.add('sender');
+                // Affiche le nom du salon si c'est un message de salon et qu'on n'est PAS dans ce salon
+                let prefix = "";
+                if (message.channelId && currentConversation.type !== 'channel' || currentConversation.id !== message.channelId) {
+                   // Pourrait récupérer le nom du channel ici si besoin (pas dans le DTO actuel)
+                   prefix = `(#${message.channelId}) `; 
+                }
+                infoElement.textContent = prefix + message.senderUsername;
+                messageElement.appendChild(infoElement);
+
+                const textElement = document.createElement('p');
+                textElement.textContent = message.content;
+                messageElement.appendChild(textElement);
+
+                const timeElement = document.createElement('span');
+                timeElement.classList.add('timestamp');
+                const messageTime = new Date(message.timestamp);
+                timeElement.textContent = messageTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                messageElement.appendChild(timeElement);
+
+                // Créer un conteneur pour les boutons d'action
+                const actionContainer = document.createElement('div');
+                actionContainer.classList.add('message-actions', 'mt-1');
+                messageElement.appendChild(actionContainer);
+
+                // Ajouter les boutons d'action si on est dans un salon et qu'on n'est pas l'expéditeur du message
+                if (currentConversation.type === 'channel' && message.senderUsername !== currentUsername) {
+                    // On ajoute les boutons seulement si on est dans un salon
+                    await addMessageModeratorControls(message, messageElement, actionContainer);
+                }
+
+                messageArea.appendChild(messageElement);
+            }
+        } else {
+            console.log("Aucun message dans l'historique");
+        }
+        
         messageArea.scrollTop = messageArea.scrollHeight;
     } catch (error) {
         console.error(`Impossible de récupérer l'historique pour ${currentConversation.type} ${currentConversation.id}:`, error);
@@ -504,11 +586,13 @@ function highlightItemWithNewMessage(type, id) {
     });
 }
 
-// --- displayMessage (adapté pour afficher le nom du salon si pertinent) ---
+// --- Fonction pour afficher un message dans le DOM ---
 function displayMessage(message) {
     const messageElement = document.createElement('div');
     messageElement.classList.add('message');
     messageElement.classList.add(message.senderUsername === currentUsername ? 'sent' : 'received');
+    messageElement.dataset.id = message.id;
+    messageElement.dataset.sender = message.senderUsername;
 
     const avatarElement = document.createElement('span');
     const avatarText = document.createTextNode(message.senderUsername[0]);
@@ -541,37 +625,142 @@ function displayMessage(message) {
     timeElement.textContent = messageTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     messageElement.appendChild(timeElement);
 
-    // Ajouter le bouton de suppression si on est dans un salon
-    if (currentConversation.type === 'channel') {
-        const deleteButton = document.createElement('button');
-        deleteButton.classList.add('btn', 'btn-sm', 'btn-danger', 'float-end');
-        deleteButton.innerHTML = '🗑️';
-        deleteButton.onclick = async () => {
-            try {
-                const response = await fetch(
-                    `/api/messages/channel/${currentConversation.id}/messages/${message.id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': 'Bearer ' + localStorage.getItem('jwtToken')
-                    }
-                });
+    // Créer un conteneur pour les boutons d'action
+    const actionContainer = document.createElement('div');
+    actionContainer.classList.add('message-actions', 'mt-1');
+    messageElement.appendChild(actionContainer);
 
-                if (response.ok) {
-                    messageElement.remove();
-                } else {
-                    const error = await response.json();
-                    alert(error.message || 'Erreur lors de la suppression du message');
-                }
-            } catch (error) {
-                console.error('Erreur:', error);
-                alert('Erreur lors de la suppression du message');
-            }
-        };
-        messageElement.appendChild(deleteButton);
+    // Ajouter les boutons d'action si on est dans un salon et qu'on n'est pas l'expéditeur du message
+    if (currentConversation.type === 'channel' && message.senderUsername !== currentUsername) {
+        // On ajoute les boutons seulement si on est dans un salon
+        addMessageModeratorControls(message, messageElement, actionContainer);
     }
 
     messageArea.appendChild(messageElement);
     messageArea.scrollTop = messageArea.scrollHeight;
+}
+
+// Fonction séparée pour ajouter les contrôles de modération aux messages
+async function addMessageModeratorControls(message, messageElement, actionContainer) {
+    try {
+        const channelId = currentConversation.id;
+        
+        // Vider le conteneur d'actions existant
+        actionContainer.innerHTML = '';
+        
+        console.log(`Vérification des droits de modération pour le message ${message.id} dans le salon ${channelId}...`);
+        console.log(`Utilisateur actuel: ${currentUsername}`);
+        
+        // Récupérer un nouveau jeton frais pour éviter les problèmes d'expiration
+        const token = localStorage.getItem('jwtToken');
+        if (!token) {
+            console.error('Pas de jeton JWT disponible');
+            return;
+        }
+        
+        // Récupérer d'abord les détails du salon pour vérifier directement les modérateurs
+        try {
+            const channelResponse = await fetch(`/api/channels/${channelId}`, {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            
+            if (!channelResponse.ok) {
+                console.error(`Erreur HTTP lors de la récupération des détails du salon: ${channelResponse.status}`);
+                return;
+            }
+            
+            const channel = await channelResponse.json();
+            console.log('Détails du salon pour vérification des permissions:', channel);
+            
+            // Vérifier directement si l'utilisateur est admin ou modérateur
+            const isAdmin = channel.creatorUsername === currentUsername;
+            const isModerator = channel.moderatorUsernames && channel.moderatorUsernames.includes(currentUsername);
+            
+            console.log(`Permission directe: isAdmin=${isAdmin}, isModerator=${isModerator}`);
+            
+            // Si l'utilisateur n'est ni admin ni modérateur, on s'arrête là
+            if (!isAdmin && !isModerator) {
+                console.log(`L'utilisateur ${currentUsername} n'a pas de droits de modération pour le message ${message.id}`);
+                return;
+            }
+            
+            console.log(`L'utilisateur ${currentUsername} a des droits de modération, affichage des contrôles pour le message ${message.id}`);
+            
+            // Bouton de suppression du message
+            const deleteButton = document.createElement('button');
+            deleteButton.classList.add('btn', 'btn-sm', 'btn-danger', 'me-1');
+            deleteButton.innerHTML = '🗑️';
+            deleteButton.title = 'Supprimer ce message';
+            deleteButton.onclick = async () => {
+                try {
+                    if (confirm('Êtes-vous sûr de vouloir supprimer ce message ?')) {
+                        console.log(`Tentative de suppression du message ${message.id}...`);
+                        const response = await fetch(
+                            `/api/messages/channel/${channelId}/messages/${message.id}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('jwtToken')
+                            }
+                        });
+
+                        if (response.ok) {
+                            console.log(`Message ${message.id} supprimé avec succès`);
+                            messageElement.remove();
+                        } else {
+                            const error = await response.json();
+                            console.error(`Erreur lors de la suppression du message:`, error);
+                            alert(error.message || 'Erreur lors de la suppression du message');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erreur:', error);
+                    alert('Erreur lors de la suppression du message');
+                }
+            };
+            actionContainer.appendChild(deleteButton);
+            
+            // Bouton pour bloquer l'utilisateur
+            const blockButton = document.createElement('button');
+            blockButton.classList.add('btn', 'btn-sm', 'btn-warning');
+            blockButton.innerHTML = '🚫';
+            blockButton.title = 'Bloquer cet utilisateur';
+            blockButton.onclick = async () => {
+                try {
+                    if (confirm(`Êtes-vous sûr de vouloir bloquer ${message.senderUsername} dans ce salon ?`)) {
+                        console.log(`Tentative de blocage de l'utilisateur ${message.senderUsername}...`);
+                        const response = await fetch(
+                            `/api/channels/${channelId}/block/${message.senderUsername}`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('jwtToken'),
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        if (response.ok) {
+                            console.log(`Utilisateur ${message.senderUsername} bloqué avec succès`);
+                            alert(`L'utilisateur ${message.senderUsername} a été bloqué dans ce salon.`);
+                            // Recharger l'historique des messages pour appliquer le blocage
+                            fetchHistory();
+                        } else {
+                            const error = await response.json();
+                            console.error(`Erreur lors du blocage de l'utilisateur:`, error);
+                            alert(error.message || 'Erreur lors du blocage de l\'utilisateur');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erreur:', error);
+                    alert('Erreur lors du blocage de l\'utilisateur');
+                }
+            };
+            actionContainer.appendChild(blockButton);
+            
+        } catch (error) {
+            console.error('Erreur lors de la récupération des détails du salon:', error);
+        }
+    } catch (error) {
+        console.error('Erreur lors de la vérification des permissions:', error);
+    }
 }
 
 // --- Déconnexion (adapté pour nettoyer les abonnements) ---
@@ -660,59 +849,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Cache la page de chat initialement (si non géré par la logique d'authentification)
 // chatPage.classList.add('hidden');
-
-// --- Fonction pour afficher un message dans le DOM ---
-function displayMessage(message) {
-    const messageElement = document.createElement('div');
-    messageElement.classList.add('message');
-
-    // Détermine si le message est envoyé ou reçu par l'utilisateur actuel
-    if (message.senderUsername === currentUsername) {
-        messageElement.classList.add('sent');
-    } else {
-        messageElement.classList.add('received');
-    }
-
-    // Avatar simplifié (initiale avec couleur)
-    const avatarElement = document.createElement('span');
-    const avatarText = document.createTextNode(message.senderUsername[0]);
-    avatarElement.appendChild(avatarText);
-    avatarElement.style['background-color'] = getAvatarColor(message.senderUsername);
-    avatarElement.style['color'] = '#fff';
-    avatarElement.style['padding'] = '5px 8px';
-    avatarElement.style['border-radius'] = '50%';
-    avatarElement.style['margin-right'] = '8px';
-    // messageElement.appendChild(avatarElement); // Décommentez pour afficher l'avatar
-
-    // Informations du message
-    const infoElement = document.createElement('div');
-    infoElement.classList.add('sender');
-    infoElement.textContent = message.senderUsername + (message.recipientUsername ? ' à ' + message.recipientUsername : '');
-    messageElement.appendChild(infoElement);
-
-    // Contenu du message
-    const textElement = document.createElement('p');
-    textElement.textContent = message.content;
-    messageElement.appendChild(textElement);
-
-    // Timestamp
-    const timeElement = document.createElement('span');
-    timeElement.classList.add('timestamp');
-    // Formater le timestamp (simpliste)
-    const messageTime = new Date(message.timestamp);
-    timeElement.textContent = messageTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    messageElement.appendChild(timeElement);
-
-    // Ajoute le message à la zone de chat
-    messageArea.appendChild(messageElement);
-    // Fait défiler vers le bas pour voir le dernier message
-    messageArea.scrollTop = messageArea.scrollHeight;
-
-    // Notification (très basique)
-    if (document.hidden && message.senderUsername !== currentUsername) { // Si l'onglet n'est pas actif
-        notifyUser("Nouveau message de " + message.senderUsername);
-    }
-}
 
 // --- Fonctions pour la création de salon ---
 function showCreateChannelModal() {
@@ -808,21 +944,53 @@ async function isChannelAdmin(channelId) {
 async function manageModerators(channelId) {
     const token = localStorage.getItem('jwtToken');
     try {
+        // Récupérer d'abord le salon pour connaître les modérateurs actuels
+        console.log(`Récupération des détails du salon ${channelId}...`);
+        const channelResponse = await fetch(`/api/channels/${channelId}`, {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        
+        if (!channelResponse.ok) {
+            throw new Error('Erreur lors de la récupération des détails du salon');
+        }
+        
+        const channel = await channelResponse.json();
+        console.log('Détails du salon récupérés:', channel);
+        const currentModerators = channel.moderatorUsernames || [];
+        console.log('Modérateurs actuels:', currentModerators);
+        
         // Récupérer la liste des utilisateurs
         const response = await fetch('/api/users', {
             headers: { 'Authorization': 'Bearer ' + token }
         });
+        
+        if (!response.ok) {
+            throw new Error('Erreur lors de la récupération de la liste des utilisateurs');
+        }
+        
         const users = await response.json();
 
-        // Créer une boîte de dialogue simple
-        const userList = users.map(user => `
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" value="${user.username}" id="mod-${user.username}">
-                <label class="form-check-label" for="mod-${user.username}">
-                    ${user.username}
-                </label>
-            </div>
-        `).join('');
+        // Créer une boîte de dialogue avec les modérateurs pré-cochés
+        const userList = users.map(user => {
+            // Vérifier si l'utilisateur est déjà modérateur
+            const isChecked = currentModerators.includes(user.username);
+            console.log(`Utilisateur ${user.username} est modérateur: ${isChecked}`);
+            
+            return `
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="${user.username}" id="mod-${user.username}" ${isChecked ? 'checked' : ''}>
+                    <label class="form-check-label" for="mod-${user.username}">
+                        ${user.username}
+                    </label>
+                </div>
+            `;
+        }).join('');
+
+        // Supprimer tout modal existant pour éviter les doublons
+        const existingModal = document.getElementById('moderatorModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
 
         // Afficher un modal Bootstrap pour la gestion des modérateurs
         const modalHtml = `
@@ -838,7 +1006,7 @@ async function manageModerators(channelId) {
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                            <button type="button" class="btn btn-primary" onclick="saveModerators(${channelId})">Enregistrer</button>
+                            <button type="button" class="btn btn-primary" id="save-mods-btn">Enregistrer</button>
                         </div>
                     </div>
                 </div>
@@ -847,17 +1015,23 @@ async function manageModerators(channelId) {
 
         // Ajouter le modal au DOM et l'afficher
         document.body.insertAdjacentHTML('beforeend', modalHtml);
-        const modal = new bootstrap.Modal(document.getElementById('moderatorModal'));
+        const modalElement = document.getElementById('moderatorModal');
+        const modal = new bootstrap.Modal(modalElement);
         modal.show();
 
+        // Configurer le bouton d'enregistrement
+        document.getElementById('save-mods-btn').addEventListener('click', function() {
+            saveModerators(channelId);
+        });
+
         // Nettoyer le modal après fermeture
-        document.getElementById('moderatorModal').addEventListener('hidden.bs.modal', function () {
+        modalElement.addEventListener('hidden.bs.modal', function () {
             this.remove();
         });
 
     } catch (error) {
         console.error('Erreur lors de la gestion des modérateurs:', error);
-        alert('Erreur lors de la gestion des modérateurs');
+        alert('Erreur lors de la gestion des modérateurs: ' + error.message);
     }
 }
 
@@ -868,6 +1042,8 @@ async function saveModerators(channelId) {
         .map(input => input.value);
 
     try {
+        console.log(`Mise à jour des modérateurs pour le salon ${channelId}:`, moderators);
+        
         const response = await fetch(`/api/channels/${channelId}/moderators`, {
             method: 'POST',
             headers: {
@@ -877,15 +1053,168 @@ async function saveModerators(channelId) {
             body: JSON.stringify(moderators)
         });
 
+        const data = await response.json();
+        console.log("Réponse de mise à jour des modérateurs:", data);
+
         if (response.ok) {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('moderatorModal'));
-            modal.hide();
+            // Afficher un message de confirmation
             alert('Modérateurs mis à jour avec succès');
+            
+            // Fermer le modal proprement pour éviter les erreurs d'aria-hidden
+            const modalElement = document.getElementById('moderatorModal');
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            
+            // Nettoyer l'élément modal avant de le cacher
+            modalElement.addEventListener('hidden.bs.modal', function () {
+                modalElement.remove();
+            });
+            
+            modal.hide();
+            
+            // Si l'utilisateur est actuellement dans ce salon
+            // On rafraîchit complètement l'historique et les contrôles de modération
+            if (currentConversation.type === 'channel' && currentConversation.id === channelId) {
+                console.log("Rechargement complet de l'historique du salon...");
+                await fetchHistory(); // Recharger tout l'historique
+            }
         } else {
-            throw new Error('Erreur lors de la mise à jour des modérateurs');
+            throw new Error(data.message || 'Erreur lors de la mise à jour des modérateurs');
         }
     } catch (error) {
         console.error('Erreur:', error);
-        alert('Erreur lors de la sauvegarde des modérateurs');
+        alert('Erreur lors de la sauvegarde des modérateurs: ' + error.message);
+        
+        // Cacher et supprimer le modal même en cas d'erreur
+        try {
+            const modalElement = document.getElementById('moderatorModal');
+            if (modalElement) {
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) modal.hide();
+                modalElement.remove();
+            }
+        } catch (e) {
+            console.error('Erreur lors de la fermeture du modal:', e);
+        }
+    }
+}
+
+// Fonction pour vérifier les permissions d'un utilisateur dans un salon
+async function checkChannelPermissions(channelId) {
+    const token = localStorage.getItem('jwtToken');
+    try {
+        console.log(`Vérification des permissions pour le salon ${channelId}...`);
+        
+        const response = await fetch(`/api/channels/${channelId}/permissions`, {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        
+        if (!response.ok) {
+            console.error(`Erreur HTTP lors de la vérification des permissions: ${response.status}`);
+            return { isAdmin: false, isModerator: false };
+        }
+        
+        const permissions = await response.json();
+        console.log(`Permissions pour le salon ${channelId}:`, permissions);
+        
+        return permissions;
+    } catch (error) {
+        console.error('Erreur lors de la vérification des permissions:', error);
+        return { isAdmin: false, isModerator: false };
+    }
+}
+
+// Fonction pour gérer les utilisateurs bloqués
+async function manageBlockedUsers(channelId) {
+    const token = localStorage.getItem('jwtToken');
+    try {
+        // Récupérer la liste des utilisateurs bloqués
+        const response = await fetch(`/api/channels/${channelId}/blocked`, {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Erreur lors de la récupération des utilisateurs bloqués');
+        }
+        
+        const blockedUsers = await response.json();
+        
+        // Créer une liste d'utilisateurs bloqués
+        let blockedUsersList = '';
+        if (blockedUsers.length === 0) {
+            blockedUsersList = '<p>Aucun utilisateur bloqué dans ce salon.</p>';
+        } else {
+            blockedUsersList = blockedUsers.map(username => `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>${username}</span>
+                    <button class="btn btn-sm btn-success unblock-btn" data-username="${username}">Débloquer</button>
+                </div>
+            `).join('');
+        }
+        
+        // Afficher un modal Bootstrap pour la gestion des utilisateurs bloqués
+        const modalHtml = `
+            <div class="modal fade" id="blockedUsersModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Gérer les utilisateurs bloqués</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            ${blockedUsersList}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Ajouter le modal au DOM et l'afficher
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        const modal = new bootstrap.Modal(document.getElementById('blockedUsersModal'));
+        modal.show();
+        
+        // Ajouter les écouteurs d'événements pour les boutons de déblocage
+        document.querySelectorAll('.unblock-btn').forEach(button => {
+            button.addEventListener('click', async function() {
+                const username = this.dataset.username;
+                try {
+                    const response = await fetch(`/api/channels/${channelId}/block/${username}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+                    
+                    if (response.ok) {
+                        // Supprimer l'élément du DOM
+                        this.parentNode.remove();
+                        
+                        // Afficher un message de succès
+                        alert(`L'utilisateur ${username} a été débloqué.`);
+                        
+                        // Si plus d'utilisateurs bloqués, afficher un message
+                        if (document.querySelectorAll('.unblock-btn').length === 0) {
+                            document.querySelector('.modal-body').innerHTML = '<p>Aucun utilisateur bloqué dans ce salon.</p>';
+                        }
+                    } else {
+                        const error = await response.json();
+                        alert(error.message || 'Erreur lors du déblocage de l\'utilisateur');
+                    }
+                } catch (error) {
+                    console.error('Erreur:', error);
+                    alert('Erreur lors du déblocage de l\'utilisateur');
+                }
+            });
+        });
+        
+        // Nettoyer le modal après fermeture
+        document.getElementById('blockedUsersModal').addEventListener('hidden.bs.modal', function () {
+            this.remove();
+        });
+        
+    } catch (error) {
+        console.error('Erreur lors de la gestion des utilisateurs bloqués:', error);
+        alert('Erreur lors de la gestion des utilisateurs bloqués');
     }
 } 

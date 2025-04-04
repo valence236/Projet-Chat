@@ -81,18 +81,24 @@ public class ChannelController {
             @RequestBody List<String> moderatorUsernames,
             Principal principal) {
         
-        Channel channel = channelRepository.findById(channelId)
-            .orElseThrow(() -> new RuntimeException("Salon non trouvé"));
-
-        if (!channel.getCreatorUsername().equals(principal.getName())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body("Seul l'administrateur peut gérer les modérateurs");
+        try {
+            Channel channel = channelRepository.findById(channelId)
+                .orElseThrow(() -> new RuntimeException("Salon non trouvé"));
+    
+            if (!channel.getCreatorUsername().equals(principal.getName())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ErrorResponse("Seul l'administrateur peut gérer les modérateurs"));
+            }
+    
+            System.out.println("Mise à jour des modérateurs pour le salon " + channelId + ": " + moderatorUsernames);
+            channel.setModeratorUsernames(new HashSet<>(moderatorUsernames));
+            channelRepository.save(channel);
+            
+            return ResponseEntity.ok(new SuccessResponse("Modérateurs mis à jour avec succès"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("Erreur lors de la mise à jour des modérateurs: " + e.getMessage()));
         }
-
-        channel.setModeratorUsernames(new HashSet<>(moderatorUsernames));
-        channelRepository.save(channel);
-        
-        return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{channelId}")
@@ -159,6 +165,154 @@ public class ChannelController {
         return ResponseEntity.ok(new PermissionsDto(isAdmin, isModerator));
     }
 
+    @PostMapping("/{channelId}/block/{username}")
+    @Operation(summary = "Bloquer un utilisateur dans un salon")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<?> blockUser(
+            @PathVariable Long channelId,
+            @PathVariable String username,
+            Principal principal) {
+        try {
+            Channel channel = channelRepository.findById(channelId)
+                .orElseThrow(() -> new RuntimeException("Salon non trouvé"));
+            
+            // Vérifier si l'utilisateur actuel est administrateur ou modérateur
+            if (!channel.canModerateMessages(principal.getName())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ErrorResponse("Vous devez être administrateur ou modérateur pour bloquer un utilisateur"));
+            }
+            
+            // Vérifier que l'utilisateur à bloquer n'est pas l'administrateur
+            if (channel.isAdmin(username)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ErrorResponse("Impossible de bloquer l'administrateur du salon"));
+            }
+            
+            // Ajouter l'utilisateur à la liste des utilisateurs bloqués
+            Set<String> blockedUsers = channel.getBlockedUsernames();
+            blockedUsers.add(username);
+            channel.setBlockedUsernames(blockedUsers);
+            
+            // Si l'utilisateur bloqué était modérateur, le retirer des modérateurs
+            if (channel.isModerator(username)) {
+                Set<String> moderators = channel.getModeratorUsernames();
+                moderators.remove(username);
+                channel.setModeratorUsernames(moderators);
+            }
+            
+            channelRepository.save(channel);
+            
+            return ResponseEntity.ok(new SuccessResponse("Utilisateur " + username + " bloqué avec succès"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("Erreur lors du blocage de l'utilisateur: " + e.getMessage()));
+        }
+    }
+    
+    @DeleteMapping("/{channelId}/block/{username}")
+    @Operation(summary = "Débloquer un utilisateur dans un salon")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<?> unblockUser(
+            @PathVariable Long channelId,
+            @PathVariable String username,
+            Principal principal) {
+        try {
+            Channel channel = channelRepository.findById(channelId)
+                .orElseThrow(() -> new RuntimeException("Salon non trouvé"));
+            
+            // Vérifier si l'utilisateur actuel est administrateur ou modérateur
+            if (!channel.canModerateMessages(principal.getName())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ErrorResponse("Vous devez être administrateur ou modérateur pour débloquer un utilisateur"));
+            }
+            
+            // Retirer l'utilisateur de la liste des utilisateurs bloqués
+            Set<String> blockedUsers = channel.getBlockedUsernames();
+            blockedUsers.remove(username);
+            channel.setBlockedUsernames(blockedUsers);
+            channelRepository.save(channel);
+            
+            return ResponseEntity.ok(new SuccessResponse("Utilisateur " + username + " débloqué avec succès"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("Erreur lors du déblocage de l'utilisateur: " + e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/{channelId}/blocked")
+    @Operation(summary = "Liste les utilisateurs bloqués d'un salon")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<?> getBlockedUsers(
+            @PathVariable Long channelId,
+            Principal principal) {
+        try {
+            Channel channel = channelRepository.findById(channelId)
+                .orElseThrow(() -> new RuntimeException("Salon non trouvé"));
+            
+            // Vérifier si l'utilisateur actuel est administrateur ou modérateur
+            if (!channel.canModerateMessages(principal.getName())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ErrorResponse("Vous devez être administrateur ou modérateur pour voir les utilisateurs bloqués"));
+            }
+            
+            return ResponseEntity.ok(channel.getBlockedUsernames());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("Erreur lors de la récupération des utilisateurs bloqués: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{channelId}")
+    @Operation(summary = "Récupère les détails d'un salon")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<?> getChannel(
+            @PathVariable Long channelId,
+            Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        
+        try {
+            Channel channel = channelRepository.findById(channelId)
+                .orElseThrow(() -> new RuntimeException("Salon non trouvé"));
+            
+            ChannelDto channelDto = new ChannelDto(
+                channel.getId(),
+                channel.getName(),
+                channel.getDescription(),
+                channel.getCreatorUsername(),
+                channel.getModeratorUsernames()
+            );
+            
+            return ResponseEntity.ok(channelDto);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("Erreur lors de la récupération du salon: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{channelId}/admin-status")
+    @Operation(summary = "Vérifie si l'utilisateur est administrateur d'un salon")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<?> checkAdminStatus(
+            @PathVariable Long channelId,
+            Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        
+        try {
+            Channel channel = channelRepository.findById(channelId)
+                .orElseThrow(() -> new RuntimeException("Salon non trouvé"));
+            
+            boolean isAdmin = channel.isAdmin(principal.getName());
+            return ResponseEntity.ok(new AdminStatusDto(isAdmin));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("Erreur lors de la vérification du statut admin: " + e.getMessage()));
+        }
+    }
+
     record ChannelDto(
         Long id, 
         String name, 
@@ -176,6 +330,8 @@ public class ChannelController {
         boolean isAdmin, 
         boolean isModerator
     ) {}
+
+    record AdminStatusDto(boolean isAdmin) {}
 
     // Classes pour les réponses
     record ErrorResponse(String message) {}
