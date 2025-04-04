@@ -29,6 +29,9 @@ public class Channel {
 
     @ElementCollection
     private Set<String> moderatorUsernames = new HashSet<>();  // Liste des modérateurs
+    
+    @ElementCollection
+    private Set<String> blockedUsernames = new HashSet<>();  // Liste des utilisateurs bloqués
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -44,5 +47,9 @@ public class Channel {
 
     public boolean canModerateMessages(String username) {
         return isAdmin(username) || isModerator(username);
+    }
+    
+    public boolean isBlocked(String username) {
+        return blockedUsernames.contains(username);
     }
 } 

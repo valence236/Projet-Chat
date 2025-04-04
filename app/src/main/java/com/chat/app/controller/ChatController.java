@@ -72,6 +72,23 @@ public class ChatController {
                 // Envoyer une erreur à l'utilisateur ?
                 return; // Ne pas envoyer le message
             }
+            
+            // Vérifier si l'utilisateur est bloqué dans ce salon
+            if (channel.isBlocked(currentUsername)) {
+                System.err.println("Utilisateur bloqué dans le salon: " + currentUsername);
+                // Envoyer un message d'erreur à l'utilisateur
+                MessageDto errorDto = new MessageDto(
+                    null,
+                    "Système",
+                    currentUsername,
+                    null,
+                    "Vous êtes bloqué dans ce salon et ne pouvez pas envoyer de messages.",
+                    LocalDateTime.now()
+                );
+                messagingTemplate.convertAndSendToUser(currentUsername, "/queue/messages", errorDto);
+                return; // Ne pas envoyer le message
+            }
+            
             destinationTopic = "/topic/channel." + channel.getId(); // Destination spécifique au salon
             System.out.println("Sending message to channel: " + destinationTopic);
 

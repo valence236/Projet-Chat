@@ -31,24 +31,39 @@ public class MessageController {
             @PathVariable Long messageId,
             Principal principal) {
         
-        Channel channel = channelRepository.findById(channelId)
-                .orElseThrow(() -> new RuntimeException("Salon non trouvé"));
-
-        Message message = messageRepository.findById(messageId)
-                .orElseThrow(() -> new RuntimeException("Message non trouvé"));
-
-        if (!message.getChannel().getId().equals(channelId)) {
-            return ResponseEntity.badRequest()
-                    .body("Le message n'appartient pas à ce salon");
+        try {
+            if (principal == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ErrorResponse("Non authentifié"));
+            }
+            
+            Channel channel = channelRepository.findById(channelId)
+                    .orElseThrow(() -> new RuntimeException("Salon non trouvé"));
+    
+            Message message = messageRepository.findById(messageId)
+                    .orElseThrow(() -> new RuntimeException("Message non trouvé"));
+    
+            if (message.getChannel() == null || !message.getChannel().getId().equals(channelId)) {
+                return ResponseEntity.badRequest()
+                        .body(new ErrorResponse("Le message n'appartient pas à ce salon"));
+            }
+    
+            String username = principal.getName();
+            if (!channel.canModerateMessages(username)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ErrorResponse("Vous devez être modérateur ou administrateur pour supprimer des messages"));
+            }
+    
+            messageRepository.deleteById(messageId);
+            return ResponseEntity.ok(new SuccessResponse("Message supprimé avec succès"));
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Erreur lors de la suppression du message: " + e.getMessage()));
         }
-
-        String username = principal.getName();
-        if (!channel.canModerateMessages(username)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body("Vous devez être modérateur ou administrateur pour supprimer des messages");
-        }
-
-        messageRepository.deleteById(messageId);
-        return ResponseEntity.ok().build();
     }
+    
+    // Classes pour les réponses
+    record ErrorResponse(String message) {}
+    record SuccessResponse(String message) {}
 } 
