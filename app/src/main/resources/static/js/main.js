@@ -461,7 +461,7 @@ async function fetchHistory() {
                 let prefix = "";
                 if (message.channelId && currentConversation.type !== 'channel' || currentConversation.id !== message.channelId) {
                    // Pourrait récupérer le nom du channel ici si besoin (pas dans le DTO actuel)
-                   prefix = `(#${message.channelId}) `; 
+                   prefix = ``; 
                 }
                 infoElement.textContent = prefix + message.senderUsername;
                 messageElement.appendChild(infoElement);
@@ -610,7 +610,7 @@ function displayMessage(message) {
     let prefix = "";
     if (message.channelId && currentConversation.type !== 'channel' || currentConversation.id !== message.channelId) {
        // Pourrait récupérer le nom du channel ici si besoin (pas dans le DTO actuel)
-       prefix = `(#${message.channelId}) `; 
+       prefix = ``; 
     }
     infoElement.textContent = prefix + message.senderUsername;
     messageElement.appendChild(infoElement);
